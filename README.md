@@ -42,7 +42,7 @@ recorded calls · internal knowledge bases built from Loom/Zoom recordings.
 | **Streaming** | Answers stream token by token over Server-Sent Events |
 | **Works without an API key** | Uses a local model through [Ollama](https://ollama.com) when no key is set; with no model at all, it returns the best-matching moments, so search still works |
 | **Scoped search** | Search the whole library or a single video; follow-up questions keep conversation context |
-| **Production basics** | Background ingest queue with live progress, resume after restart, Docker image, CI, tests |
+| **Production basics** | Background ingest queue with live progress, resume after restart, Docker image, tests |
 
 ## Architecture
 
