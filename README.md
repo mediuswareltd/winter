@@ -1,4 +1,13 @@
-# Video RAG: chat with your videos
+<p align="center">
+  <img src="videorag/web/logo.svg" alt="Winter logo" width="96" height="96" />
+</p>
+
+<h1 align="center">Winter</h1>
+
+<p align="center">
+  <strong>Chat with your videos.</strong><br />
+  Multimodal retrieval over speech and keyframes, with every answer cited by timestamp.
+</p>
 
 Ask a question about hours of video and get a grounded answer in seconds. **Every claim links to the
 exact moment it came from**: click a citation and the player jumps there.
@@ -31,7 +40,7 @@ recorded calls · internal knowledge bases built from Loom/Zoom recordings.
 | **Multimodal answers** | Transcript excerpts and the matching keyframes go to Claude, which answers with inline `[n]` citations |
 | **Clickable citations** | Each citation is a timestamp chip; clicking it seeks the player. Source cards show the frame and excerpt |
 | **Streaming** | Answers stream token by token over Server-Sent Events |
-| **Works without an API key** | With no LLM configured, it returns the best-matching moments, so search still works |
+| **Works without an API key** | Uses a local model through [Ollama](https://ollama.com) when no key is set; with no model at all, it returns the best-matching moments, so search still works |
 | **Scoped search** | Search the whole library or a single video; follow-up questions keep conversation context |
 | **Production basics** | Background ingest queue with live progress, resume after restart, Docker image, CI, tests |
 
@@ -80,35 +89,88 @@ flowchart LR
 
 ## Quick start
 
+### Docker (recommended)
+
+Needs only [Docker](https://docs.docker.com/get-docker/) (Docker Desktop on Windows/macOS).
+
+```bash
+git clone https://github.com/<you>/winter.git
+cd winter
+docker compose up -d --build
+```
+
+Open **http://localhost:8000**. That one command:
+
+- builds the Winter image (Python, ffmpeg, CPU PyTorch)
+- starts [Ollama](https://ollama.com) and pulls a small local model (`qwen2.5:3b`, ~1.9 GB), so you can
+  chat **with no API key**
+- keeps your videos, index and downloaded models in Docker volumes, so restarts are instant
+
+The first start takes a few minutes for the downloads. Follow along with `docker compose logs -f`.
+The header shows `LOCAL qwen2.5:3b` once the model is ready; until then, answers list the matching
+passages.
+
+**Use Claude instead** (better answers, and it can read the keyframes):
+
+```bash
+cp .env.example .env          # set ANTHROPIC_API_KEY=...
+docker compose up -d          # Claude is used whenever a key is set
+```
+
+**Common tweaks**, all set in `.env`:
+
+| Want | Set |
+|---|---|
+| A different port | `WINTER_PORT=8080` |
+| A bigger/smaller local model | `VIDEORAG_OLLAMA_MODEL=llama3.2:3b` (or `qwen2.5:7b` with 16 GB+ RAM) |
+| No local model at all | run `docker compose up -d winter` (starts only the app) |
+| NVIDIA GPU for the local model | `docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d` |
+
+**Day to day:**
+
+```bash
+docker compose stop                  # stop, keep everything
+docker compose up -d --build         # update after a git pull
+docker compose exec winter python -m videorag list    # CLI inside the container
+docker compose down -v               # remove containers AND all data/models
+```
+
+### Without Docker
+
 Requirements: Python 3.10+ and [ffmpeg](https://ffmpeg.org/download.html) on `PATH`.
 
 ```bash
-git clone https://github.com/<you>/video-rag.git
-cd video-rag
 python -m venv .venv
 # Windows: .venv\Scripts\activate    macOS/Linux: source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e .
 
-cp .env.example .env          # add your ANTHROPIC_API_KEY
-python -m videorag serve      # open http://127.0.0.1:8000
+cp .env.example .env          # optional: add your ANTHROPIC_API_KEY
+winter serve                  # open http://127.0.0.1:8000
 ```
 
 The Whisper, BGE and CLIP models (about 1 GB in total) download on first use and are cached afterwards.
 
-### Docker
+For answers without an API key, install [Ollama](https://ollama.com/download) and run
+`ollama pull qwen2.5:3b`. Winter detects the running model automatically.
 
-```bash
-cp .env.example .env          # add your ANTHROPIC_API_KEY
-docker compose up --build     # http://localhost:8000
-```
+### How answers are generated
+
+| Setup | Who writes the answer |
+|---|---|
+| `ANTHROPIC_API_KEY` set | Claude, using transcripts **and** keyframe images |
+| No key, Ollama running with the model pulled | The local model, using transcripts only |
+| Neither | No generated answer; Winter lists the best-matching moments |
+
+Force one with `VIDEORAG_LLM=claude|ollama|none`. A 3B local model is fine for factual lookups but
+cites less consistently than Claude.
 
 ### CLI
 
 ```bash
-python -m videorag ingest talk.mp4 "https://www.youtube.com/watch?v=..."
-python -m videorag list
-python -m videorag search "rate limiting" -k 5
-python -m videorag ask "What did they recommend for rate limiting?"
+winter ingest talk.mp4 "https://www.youtube.com/watch?v=..."
+winter list
+winter search "rate limiting" -k 5
+winter ask "What did they recommend for rate limiting?"
 ```
 
 ## API
@@ -132,7 +194,11 @@ Every setting is an environment variable. See [`.env.example`](.env.example) for
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | none | Without it, `/ask` returns the retrieved passages instead of a generated answer |
+| `ANTHROPIC_API_KEY` | none | Enables Claude answers. Without it, a local Ollama model is used if available |
+| `VIDEORAG_LLM` | `auto` | `claude`, `ollama` or `none` to force a backend |
+| `VIDEORAG_OLLAMA_MODEL` | `qwen2.5:3b` | Any model from the [Ollama library](https://ollama.com/library) |
+| `OLLAMA_HOST` | `http://127.0.0.1:11434` | Set automatically in Docker |
+| `WINTER_PORT` | `8000` | Host port for `docker compose` |
 | `VIDEORAG_WHISPER_MODEL` | `base` | `small` or `medium` are more accurate but slower; `large-v3` needs a GPU |
 | `VIDEORAG_WHISPER_DEVICE` | `auto` | `cuda` for an NVIDIA GPU |
 | `VIDEORAG_TEXT_MODEL` | `BAAI/bge-small-en-v1.5` | Use `BAAI/bge-m3` for multilingual libraries |
@@ -152,7 +218,7 @@ videorag/
   embeddings.py   BGE text and CLIP image embeddings
   store.py        SQLite persistence + in-memory vector index
   retrieval.py    hybrid search (dense + BM25 + RRF) and visual search
-  llm.py          prompt construction and streaming Claude answers
+  llm.py          prompt construction; streaming answers from Claude or Ollama
   pipeline.py     ingest orchestration with progress reporting
   api.py          FastAPI app (REST + SSE) serving the web UI
   cli.py          command-line interface

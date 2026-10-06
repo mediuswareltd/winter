@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from videorag.config import settings
-from videorag.llm import stream_answer
+from videorag.llm import active_llm, stream_answer
 from videorag.pipeline import Ingestor
 from videorag.retrieval import Retriever
 from videorag.store import Store
@@ -42,7 +42,7 @@ async def lifespan(_: FastAPI):
     jobs.shutdown(wait=False, cancel_futures=True)
 
 
-app = FastAPI(title="Video RAG", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="Winter", version="0.1.0", lifespan=lifespan)
 
 
 class UrlIn(BaseModel):
@@ -78,7 +78,15 @@ def _public(v) -> dict:
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "claude_model": settings.claude_model, "whisper_model": settings.whisper_model}
+    provider, model = active_llm(settings)
+    return {
+        "status": "ok",
+        "claude_model": settings.claude_model,
+        "whisper_model": settings.whisper_model,
+        "llm_provider": provider,
+        "llm_model": model,
+        "llm_configured": provider != "none",
+    }
 
 
 @app.get("/api/videos")
@@ -136,6 +144,16 @@ def video_media(vid: str):
     if not v.path or not Path(v.path).exists():
         raise HTTPException(404, "media not available yet")
     return FileResponse(v.path)  # supports HTTP Range, so the player can seek
+
+
+@app.get("/api/videos/{vid}/thumb")
+def video_thumb(vid: str):
+    v = _video_or_404(vid)
+    f = store.nearest_frame(vid, (v.duration or 0) * 0.15)
+    path = settings.frames_dir / vid / Path(f.path).name if f else None
+    if path is None or not path.exists():
+        raise HTTPException(404, "no thumbnail yet")
+    return FileResponse(path, media_type="image/jpeg")
 
 
 @app.get("/api/frames/{vid}/{name}")

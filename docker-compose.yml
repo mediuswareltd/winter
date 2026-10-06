@@ -1,13 +1,49 @@
+# Winter: `docker compose up` starts the app plus a local LLM (Ollama) and pulls the model on first run.
+# Open http://localhost:8000. Settings come from .env (see .env.example); everything has a default.
+name: winter
+
 services:
-  videorag:
+  winter:
     build: .
+    image: winter:latest
     ports:
-      - "8000:8000"
+      - "${WINTER_PORT:-8000}:8000"
     env_file:
       - path: .env
         required: false
+    environment:   # these win over .env, so a local-dev .env can't point the container elsewhere
+      VIDEORAG_DATA_DIR: /data
+      HF_HOME: /data/hf-cache
+      OLLAMA_HOST: http://ollama:11434
+      VIDEORAG_OLLAMA_MODEL: ${VIDEORAG_OLLAMA_MODEL:-qwen2.5:3b}
     volumes:
-      - videorag-data:/data   # videos, frames, index and cached models survive restarts
+      - winter-data:/data   # videos, frames, index and cached models survive restarts
+    restart: unless-stopped
+
+  # Local LLM for answers when no ANTHROPIC_API_KEY is set. The app starts without it and switches to
+  # it automatically once the model is pulled. To run without a local model: `docker compose up winter`.
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama-models:/root/.ollama
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # One-shot job: downloads the model into the ollama volume (skipped quickly if already present).
+  ollama-pull:
+    image: ollama/ollama:latest
+    depends_on:
+      ollama:
+        condition: service_healthy
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    entrypoint: ["ollama", "pull", "${VIDEORAG_OLLAMA_MODEL:-qwen2.5:3b}"]
+    restart: "no"
 
 volumes:
-  videorag-data:
+  winter-data:
+  ollama-models:

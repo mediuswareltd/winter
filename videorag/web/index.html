@@ -3,60 +3,91 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Video RAG</title>
+  <title>Winter</title>
+  <link rel="icon" type="image/svg+xml" href="logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="topbar">
-    <div class="brand"><span class="logo">▶</span> Video RAG</div>
-    <div class="muted small" id="model-info"></div>
+    <a class="brand" href="/">
+      <svg class="mark" viewBox="0 0 32 32" width="22" height="22" fill="none" aria-hidden="true">
+        <path d="M3 10V3h7M22 3h7v7M29 22v7h-7M10 29H3v-7" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
+        <circle cx="16" cy="16" r="5.5" class="rec"/>
+      </svg>
+      <span class="wordmark">winter</span>
+    </a>
+    <div class="status" id="status"></div>
   </header>
 
   <main class="layout">
-    <aside class="library">
-      <h2>Library</h2>
-      <label class="dropzone" id="dropzone">
-        <input type="file" id="file-input" accept="video/*,audio/*" multiple hidden />
-        <strong>Drop video files</strong>
-        <span class="muted small">or click to browse · mp4, mov, mkv, webm, mp3, wav</span>
-      </label>
-      <form class="url-form" id="url-form">
-        <input type="url" id="url-input" placeholder="Paste a YouTube URL" required />
-        <button type="submit">Add</button>
+    <aside class="bin" id="bin">
+      <div class="bin-head">
+        <span class="label">Library</span>
+        <span class="label num" id="lib-count">00</span>
+      </div>
+
+      <form class="import" id="url-form">
+        <input type="url" id="url-input" placeholder="Paste a YouTube link" required />
+        <button type="submit" class="btn">Import</button>
       </form>
+      <div class="upload-line">
+        <label class="link-btn">
+          <input type="file" id="file-input" accept="video/*,audio/*" multiple hidden />
+          Upload files
+        </label>
+        <span class="muted">or drop them here</span>
+      </div>
+
       <ul class="video-list" id="video-list"></ul>
-      <p class="muted small" id="empty-lib">No videos yet. Add one to get started.</p>
+      <p class="bin-empty muted" id="empty-lib">Nothing here yet. Add a recording to start building an index.</p>
+      <div class="drop-overlay">Drop to add to library</div>
     </aside>
 
     <section class="stage">
-      <div class="player-wrap" id="player-wrap">
+      <div class="monitor" id="player-wrap">
         <video id="player" controls preload="metadata"></video>
-        <div class="player-empty" id="player-empty">Select a video, or ask a question and click a citation.</div>
+        <div class="monitor-empty">
+          <span class="label">No source</span>
+          <p>Pick a recording from the library, or click a timecode in an answer.</p>
+        </div>
       </div>
-      <div class="now-playing small muted" id="now-playing"></div>
-
-      <div class="chat" id="chat">
-        <div class="hint" id="hint">
-          <h3>Ask anything about your videos</h3>
-          <p class="muted">Answers are grounded in what was said <em>and</em> shown, with clickable timestamps.</p>
-          <div class="examples">
-            <button class="chip">Summarize the main points</button>
-            <button class="chip">What tools or products are mentioned?</button>
-            <button class="chip">When is a diagram or slide shown?</button>
-          </div>
+      <div class="timeline" id="timeline" hidden>
+        <div class="tl-head">
+          <span class="tl-title" id="tl-title"></span>
+          <span class="tc" id="tl-time">0:00 / 0:00</span>
+        </div>
+        <div class="tl-track" id="tl-track">
+          <div class="tl-played" id="tl-played"></div>
+          <div class="tl-marks" id="tl-marks"></div>
         </div>
       </div>
 
-      <form class="ask" id="ask-form">
+      <div class="thread" id="chat">
+        <div class="intro" id="hint">
+          <p>Ask about anything said or shown in your library. Every answer cites its sources by timecode, and clicking one cues the player to that moment.</p>
+          <span class="label">Try</span>
+          <ul class="examples">
+            <li><button type="button" class="link-btn">Summarize the main points</button></li>
+            <li><button type="button" class="link-btn">What tools or products are mentioned?</button></li>
+            <li><button type="button" class="link-btn">When is a diagram or slide shown?</button></li>
+          </ul>
+        </div>
+      </div>
+
+      <form class="composer" id="ask-form">
+        <input id="question" placeholder="Ask a question" autocomplete="off" required />
         <select id="scope" title="Search scope">
-          <option value="">All videos</option>
+          <option value="">All recordings</option>
         </select>
-        <input id="question" placeholder="Ask a question…" autocomplete="off" required />
-        <button type="submit" id="ask-btn">Ask</button>
+        <button type="submit" class="btn btn-accent" id="ask-btn">Ask <kbd>↵</kbd></button>
       </form>
     </section>
   </main>
 
+  <div class="toasts" id="toasts"></div>
   <script src="app.js"></script>
 </body>
 </html>

@@ -46,6 +46,13 @@ class Settings:
     claude_effort: str = _env("VIDEORAG_CLAUDE_EFFORT", "medium")
     images_per_answer: int = int(_env("VIDEORAG_IMAGES_PER_ANSWER", "4"))
 
+    # Which model writes answers: "auto" uses Claude when ANTHROPIC_API_KEY is set, otherwise a local
+    # Ollama model if one is running, otherwise returns the retrieved passages. Or force "claude",
+    # "ollama" or "none".
+    llm_provider: str = _env("VIDEORAG_LLM", "auto")
+    ollama_url: str = _env("OLLAMA_HOST", "http://127.0.0.1:11434")
+    ollama_model: str = _env("VIDEORAG_OLLAMA_MODEL", "qwen2.5:3b")
+
     @property
     def db_path(self) -> Path:
         return self.data_dir / "videorag.sqlite3"

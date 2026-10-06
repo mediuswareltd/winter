@@ -1,13 +1,20 @@
-"""Grounded answering with Claude: transcript excerpts + keyframe images in, cited answer out."""
+"""Grounded answering: transcript excerpts (+ keyframe images for Claude) in, cited answer out.
+
+Answers come from Claude when an API key is set, otherwise from a local Ollama model if one is running.
+"""
 
 from __future__ import annotations
 
 import base64
+import json
 import logging
+import os
+import time
 from collections.abc import Iterator
 from pathlib import Path
 
 import anthropic
+import httpx
 
 from videorag.chunking import format_ts
 from videorag.config import Settings
@@ -64,8 +71,74 @@ def build_messages(question: str, sources: list[Source], images: int, history: l
     return [*(history or []), {"role": "user", "content": content}]
 
 
+def build_text_messages(question: str, sources: list[Source], history: list[dict] | None = None) -> list[dict]:
+    """Plain-text chat messages for local models, which get the transcripts but not the keyframe images."""
+    user = f"<sources>\n{_sources_block(sources)}\n</sources>\n\nQuestion: {question}"
+    return [{"role": "system", "content": SYSTEM_PROMPT}, *(history or []), {"role": "user", "content": user}]
+
+
+def _ollama_base(settings: Settings) -> str:
+    url = settings.ollama_url.rstrip("/")
+    return url if "://" in url else f"http://{url}"
+
+
+_ollama_probe: tuple[float, bool] = (0.0, False)
+
+
+def _ollama_ready(settings: Settings) -> bool:
+    """Whether Ollama is running and has the configured model pulled. Cached for a few seconds."""
+    global _ollama_probe
+    checked, ok = _ollama_probe
+    if time.monotonic() - checked < 5:
+        return ok
+    try:
+        tags = httpx.get(f"{_ollama_base(settings)}/api/tags", timeout=0.5).json().get("models", [])
+        wanted = settings.ollama_model if ":" in settings.ollama_model else f"{settings.ollama_model}:latest"
+        ok = any(m.get("name") == wanted for m in tags)
+    except (httpx.HTTPError, ValueError):
+        ok = False
+    _ollama_probe = (time.monotonic(), ok)
+    return ok
+
+
+def active_llm(settings: Settings) -> tuple[str, str | None]:
+    """(provider, model) that will write the next answer; provider is "claude", "ollama" or "none"."""
+    choice = settings.llm_provider.lower()
+    if choice == "claude" or (choice == "auto" and os.environ.get("ANTHROPIC_API_KEY")):
+        return "claude", settings.claude_model
+    if choice == "ollama" or (choice == "auto" and _ollama_ready(settings)):
+        return "ollama", settings.ollama_model
+    return "none", None
+
+
+def _stream_ollama(messages: list[dict], settings: Settings) -> Iterator[str]:
+    body = {
+        "model": settings.ollama_model,
+        "messages": messages,
+        "stream": True,
+        "options": {"temperature": 0.2, "num_ctx": 8192},
+    }
+    timeout = httpx.Timeout(10.0, read=300.0)  # CPU inference can pause a while before the first token
+    with httpx.stream("POST", f"{_ollama_base(settings)}/api/chat", json=body, timeout=timeout) as r:
+        if r.status_code != 200:
+            r.read()
+            raise RuntimeError(f"Ollama returned {r.status_code}: {r.text[:200]}")
+        for line in r.iter_lines():
+            if not line:
+                continue
+            chunk = json.loads(line)
+            if chunk.get("error"):
+                raise RuntimeError(f"Ollama: {chunk['error']}")
+            if text := chunk.get("message", {}).get("content"):
+                yield text
+            if chunk.get("done"):
+                if chunk.get("done_reason") == "length":
+                    yield "\n\n_(answer truncated)_"
+                return
+
+
 def extractive_answer(sources: list[Source]) -> str:
-    """Used when Claude is unavailable: show the best-matching moments instead of a generated answer."""
+    """Used when no model is available: show the best-matching moments instead of a generated answer."""
     if not sources:
         return "No matching moments found in the indexed videos."
     out = ["Most relevant moments (no LLM configured, showing retrieved passages):\n"]
@@ -80,6 +153,18 @@ def stream_answer(
     """Yield answer text as it is generated. Falls back to an extractive answer if the API is unreachable."""
     if not sources:
         yield "I could not find anything relevant to that in the indexed videos."
+        return
+    provider, _ = active_llm(settings)
+    if provider == "none":
+        yield extractive_answer(sources)
+        return
+    if provider == "ollama":
+        try:
+            yield from _stream_ollama(build_text_messages(question, sources, history), settings)
+        except (httpx.HTTPError, RuntimeError) as e:
+            log.warning("Local model unavailable (%s); returning extractive answer", e)
+            yield f"\n\n_Local model error: {e}. Showing retrieved passages instead._\n\n"
+            yield extractive_answer(sources)
         return
     try:
         client = anthropic.Anthropic()

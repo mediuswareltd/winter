@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none">
+  <style>
+    .fg { color: #0a0a0a; }
+    @media (prefers-color-scheme: dark) { .fg { color: #fafafa; } }
+  </style>
+  <g class="fg">
+    <path d="M3 10V3h7M22 3h7v7M29 22v7h-7M10 29H3v-7" stroke="currentColor" stroke-width="2.5" stroke-linecap="square"/>
+    <circle cx="16" cy="16" r="5.5" fill="currentColor"/>
+  </g>
+</svg>

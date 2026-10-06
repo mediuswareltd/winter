@@ -1,4 +1,4 @@
-"""Command line: `python -m videorag ingest|ask|search|list|serve`."""
+"""Command line: `winter` (or `python -m videorag`) ingest|ask|search|list|serve."""
 
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ def main(argv: list[str] | None = None) -> None:
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
     for noisy in ("httpx", "huggingface_hub", "sentence_transformers", "faster_whisper"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
-    p = argparse.ArgumentParser(prog="videorag", description="Ask questions about your videos.")
+    p = argparse.ArgumentParser(prog="winter", description="Winter: ask questions about your videos.")
     sub = p.add_subparsers(dest="cmd", required=True)
 
     s = sub.add_parser("ingest", help="index video files or URLs")

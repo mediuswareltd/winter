@@ -51,3 +51,9 @@ def test_unknown_video_404(client):
     c, _ = client
     assert c.get("/api/videos/abcdef123456").status_code == 404
     assert c.delete("/api/videos/abcdef123456").status_code == 404
+
+
+def test_thumb_404_without_frames(client):
+    c, api = client
+    v = api.store.create_video("t", "t.mp4")
+    assert c.get(f"/api/videos/{v.id}/thumb").status_code == 404
