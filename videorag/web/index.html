@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Video RAG</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="logo">▶</span> Video RAG</div>
+    <div class="muted small" id="model-info"></div>
+  </header>
+
+  <main class="layout">
+    <aside class="library">
+      <h2>Library</h2>
+      <label class="dropzone" id="dropzone">
+        <input type="file" id="file-input" accept="video/*,audio/*" multiple hidden />
+        <strong>Drop video files</strong>
+        <span class="muted small">or click to browse · mp4, mov, mkv, webm, mp3, wav</span>
+      </label>
+      <form class="url-form" id="url-form">
+        <input type="url" id="url-input" placeholder="Paste a YouTube URL" required />
+        <button type="submit">Add</button>
+      </form>
+      <ul class="video-list" id="video-list"></ul>
+      <p class="muted small" id="empty-lib">No videos yet. Add one to get started.</p>
+    </aside>
+
+    <section class="stage">
+      <div class="player-wrap" id="player-wrap">
+        <video id="player" controls preload="metadata"></video>
+        <div class="player-empty" id="player-empty">Select a video, or ask a question and click a citation.</div>
+      </div>
+      <div class="now-playing small muted" id="now-playing"></div>
+
+      <div class="chat" id="chat">
+        <div class="hint" id="hint">
+          <h3>Ask anything about your videos</h3>
+          <p class="muted">Answers are grounded in what was said <em>and</em> shown, with clickable timestamps.</p>
+          <div class="examples">
+            <button class="chip">Summarize the main points</button>
+            <button class="chip">What tools or products are mentioned?</button>
+            <button class="chip">When is a diagram or slide shown?</button>
+          </div>
+        </div>
+      </div>
+
+      <form class="ask" id="ask-form">
+        <select id="scope" title="Search scope">
+          <option value="">All videos</option>
+        </select>
+        <input id="question" placeholder="Ask a question…" autocomplete="off" required />
+        <button type="submit" id="ask-btn">Ask</button>
+      </form>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

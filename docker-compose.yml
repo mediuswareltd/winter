@@ -1,0 +1,13 @@
+services:
+  videorag:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - videorag-data:/data   # videos, frames, index and cached models survive restarts
+
+volumes:
+  videorag-data:
