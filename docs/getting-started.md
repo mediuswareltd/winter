@@ -88,6 +88,7 @@ winter search "rate limiting" -k 5
 winter ask "What did they recommend for rate limiting?"
 ```
 
+
 ## 2. Development
 
 ```bash
@@ -97,6 +98,7 @@ ruff check . && ruff format --check .
 ```
 
 The tests use stub embeddings, so they run in a few seconds with no GPU, models or API key.
+
 
 ## Next
 
