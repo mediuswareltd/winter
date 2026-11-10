@@ -5,6 +5,9 @@ hero:
   name: "Winter"
   text: "Chat with your videos"
   tagline: "Multimodal retrieval over speech and keyframes so every answer is cited by timestamp."
+  image:
+    src: /hero.svg
+    alt: "Winter chat with your videos"
   actions:
   - theme: brand
     text: Get started
