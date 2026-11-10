@@ -251,3 +251,15 @@ MIT. See [LICENSE](LICENSE).
 Third-party components: faster-whisper (MIT), sentence-transformers (Apache-2.0), BGE models (MIT),
 CLIP (MIT), OpenCV (Apache-2.0), FastAPI (MIT), rank-bm25 (Apache-2.0), yt-dlp (Unlicense),
 Anthropic Python SDK (MIT). ffmpeg is called as an external program and is not bundled.
+
+## Documentation
+
+Full docs site (VitePress): **https://mediuswareltd.github.io/winter/**
+
+Local preview:
+
+```bash
+cd docs
+npm install
+npm run docs:dev
+```
